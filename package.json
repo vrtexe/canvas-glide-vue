@@ -1,0 +1,68 @@
+{
+  "name": "@canvas-glide/vue",
+  "version": "1.0.0",
+  "description": "Vue 3 composable and component for canvas-glide: pan, zoom and pinch-to-zoom for images or any content, with reactive refs and mouse, touch, pen and wheel input.",
+  "keywords": [
+    "vue",
+    "vue3",
+    "vuejs",
+    "nuxt",
+    "composable",
+    "vue-component",
+    "pan-zoom",
+    "panzoom",
+    "pinch-zoom",
+    "pinch-to-zoom",
+    "zoom",
+    "pan",
+    "image-viewer",
+    "image-zoom",
+    "canvas",
+    "gestures",
+    "touch",
+    "typescript"
+  ],
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "main": "./dist/canvas-glide.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/canvas-glide.js"
+    }
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc -b && vite build",
+    "build:demo": "vue-tsc -b && vite build --mode demo",
+    "preview": "vite preview --outDir demo-dist",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "canvas-glide": "^1.0.1"
+  },
+  "peerDependencies": {
+    "vue": "^3.5.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.3",
+    "@vitejs/plugin-vue": "^6.0.8",
+    "@vue/tsconfig": "^0.9.1",
+    "canvas-glide": "../lib",
+    "jsdom": "^31.0.1",
+    "localforage": "^1.10.0",
+    "typescript": "~6.0.2",
+    "vite": "^8.2.0",
+    "vite-plugin-dts": "^5.1.2",
+    "vitest": "^5.1.0",
+    "vue": "^3.5.40",
+    "vue-tsc": "^3.3.8"
+  }
+}
