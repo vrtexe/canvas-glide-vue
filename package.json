@@ -55,7 +55,6 @@
     "@types/node": "^24.13.3",
     "@vitejs/plugin-vue": "^6.0.8",
     "@vue/tsconfig": "^0.9.1",
-    "canvas-glide": "../lib",
     "jsdom": "^31.0.1",
     "localforage": "^1.10.0",
     "typescript": "~6.0.2",
