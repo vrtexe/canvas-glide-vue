@@ -3,14 +3,14 @@ import { onBeforeUnmount, shallowRef, useTemplateRef, watch, watchEffect } from 
 import type { Glide } from '../useGlide.js';
 import { drawImage } from '../util/draw.js';
 import { createImageBitmapSafe } from '../util/image.js';
-import { fitInto } from '../util/size.js';
+import { useFitContent } from './useImageSource.js';
 
 const { glide, image = null } = defineProps<{ glide: Glide; image?: Blob | null }>();
 
 const canvas = useTemplateRef<HTMLCanvasElement>('canvas');
 const bitmap = shallowRef<ImageBitmap | null>(null);
+const fitNext = useFitContent(glide, bitmap);
 
-// A new image is fitted once; a resize keeps the view and only updates the content size.
 watch(
   () => image,
   async (next, _previous, onCleanup) => {
@@ -25,16 +25,11 @@ watch(
     }
 
     bitmap.value?.close();
+    if (loaded) fitNext();
     bitmap.value = loaded;
-    glide.contentSize.value = loaded && fitInto(glide.viewportSize.value, loaded);
-    if (loaded) glide.fit();
   },
   { immediate: true },
 );
-
-watch([() => glide.viewportSize.value, bitmap], ([viewportSize, loaded]) => {
-  glide.contentSize.value = loaded && fitInto(viewportSize, loaded);
-});
 
 onBeforeUnmount(() => bitmap.value?.close());
 
