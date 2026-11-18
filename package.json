@@ -1,6 +1,6 @@
 {
   "name": "@canvas-glide/vue",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Vue 3 composable and component for canvas-glide: pan, zoom and pinch-to-zoom for images or any content, with reactive refs and mouse, touch, pen and wheel input.",
   "keywords": [
     "vue",
