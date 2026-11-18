@@ -3,19 +3,27 @@ import { afterEach, test } from "vitest";
 import assert from "node:assert/strict";
 import { createApp, createSSRApp, effectScope, h, nextTick, shallowRef, type Component } from "vue";
 import { renderToString } from "vue/server-renderer";
-import { GlideCanvas, Renderer, useGlide, type GlideOptions } from "../src/lib/index.ts";
+import { GlideCanvas, Renderer, useGlide, type Glide, type GlideOptions } from "../src/lib/index.ts";
 
-// jsdom has no layout, no ResizeObserver, no pointer capture, no 2D context and no createImageBitmap.
-globalThis.ResizeObserver ??= class {
-  observe() {}
+// jsdom has no layout, no ResizeObserver, no pointer capture, no element scrollTo, no 2D context and no createImageBitmap.
+const resizeCallbacks = new Set<() => void>();
+globalThis.ResizeObserver = class {
+  constructor(private callback: () => void) {}
+  observe() {
+    resizeCallbacks.add(this.callback);
+  }
   unobserve() {}
-  disconnect() {}
-};
-Object.defineProperty(HTMLElement.prototype, "clientWidth", { configurable: true, get: () => 1000 });
-Object.defineProperty(HTMLElement.prototype, "clientHeight", { configurable: true, get: () => 700 });
+  disconnect() {
+    resizeCallbacks.delete(this.callback);
+  }
+} as unknown as typeof ResizeObserver;
+let layout = { width: 1000, height: 700 };
+Object.defineProperty(HTMLElement.prototype, "clientWidth", { configurable: true, get: () => layout.width });
+Object.defineProperty(HTMLElement.prototype, "clientHeight", { configurable: true, get: () => layout.height });
 Element.prototype.setPointerCapture ??= () => {};
 Element.prototype.hasPointerCapture ??= () => false;
 Element.prototype.releasePointerCapture ??= () => {};
+Element.prototype.scrollTo ??= () => {};
 globalThis.createImageBitmap = (async () => ({ width: 300, height: 300, close() {} })) as unknown as typeof createImageBitmap;
 
 type FakeContext = { calls: string[] };
@@ -41,6 +49,7 @@ const cleanups: (() => void)[] = [];
 afterEach(() => {
   cleanups.splice(0).forEach((cleanup) => cleanup());
   setDevicePixelRatio(1);
+  layout = { width: 1000, height: 700 };
 });
 
 /** useGlide on an element with a stubbed client rectangle, inside its own effect scope. */
@@ -183,6 +192,38 @@ test("the default slot renders an overlay sized to the content and moved with th
   await settle();
   assert.match(overlay.style.transform, /^scale\(2\)/);
 });
+
+for (const renderer of [Renderer.Canvas, Renderer.Image, Renderer.Html]) {
+  test(`the ${renderer} renderer fits an image that loaded before the viewport had a size once it has one`, async () => {
+    layout = { width: 0, height: 0 };
+    const viewer = shallowRef<Glide>();
+    const target = mount({ render: () => h(GlideCanvas, { ref: viewer, renderer, image: new Blob(["x"], { type: "image/png" }) }) });
+    (target.firstElementChild as HTMLElement).getBoundingClientRect = () => ({ x: 0, y: 0, ...layout }) as DOMRect;
+    await settle();
+    const img = target.querySelector("img");
+    if (img) {
+      Object.defineProperties(img, { naturalWidth: { value: 300 }, naturalHeight: { value: 300 } });
+      img.dispatchEvent(new Event("load"));
+    }
+    await settle();
+
+    layout = { width: 1000, height: 700 };
+    resizeCallbacks.forEach((callback) => callback());
+    await settle();
+
+    const glide = viewer.value!;
+    const loaded = glide.engine.getTransform();
+    glide.fit();
+    assert.deepEqual(loaded, glide.engine.getTransform());
+    assert.notDeepEqual(loaded, { origin: { x: 0, y: 0 }, scale: 1 });
+
+    glide.zoomTo(2);
+    layout = { width: 800, height: 600 };
+    resizeCallbacks.forEach((callback) => callback());
+    await settle();
+    assert.equal(glide.engine.getScale(), 2);
+  });
+}
 
 test("GlideCanvas renders on the server", async () => {
   const html = await renderToString(createSSRApp({ render: () => h(GlideCanvas, { renderer: Renderer.Image }) }));

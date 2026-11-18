@@ -1,12 +1,29 @@
-import { shallowRef, watch, type MaybeRefOrGetter, toValue } from 'vue';
+import { shallowRef, watch, type MaybeRefOrGetter, toValue, type WatchSource } from 'vue';
 import type { Glide } from '../useGlide.js';
 import { createImageUrlSafe, revokeImageUrl } from '../util/image.js';
 import { fitInto, type Size } from '../util/size.js';
+
+/** Keeps `glide.contentSize` fitted into the viewport; the returned function fits the view once the viewport has a size. */
+export function useFitContent(glide: Glide, natural: WatchSource<Size | null>) {
+  let fitPending = false;
+
+  // A resize keeps the view and only updates the content size.
+  watch([() => glide.viewportSize.value, natural], ([viewportSize, size]) => {
+    glide.contentSize.value = size && fitInto(viewportSize, size);
+    if (size && fitPending && viewportSize.width && viewportSize.height) {
+      fitPending = false;
+      glide.fit();
+    }
+  });
+
+  return () => (fitPending = true);
+}
 
 /** The URL and natural size of the image for the img-based renderers; call `onLoad` from the img's load event. */
 export function useImageSource(glide: Glide, image: MaybeRefOrGetter<Blob | null>) {
   const src = shallowRef<string | null>(null);
   const natural = shallowRef<Size | null>(null);
+  const fitNext = useFitContent(glide, natural);
 
   watch(
     () => toValue(image),
@@ -32,17 +49,11 @@ export function useImageSource(glide: Glide, image: MaybeRefOrGetter<Blob | null
     { immediate: true },
   );
 
-  // A resize keeps the view and only updates the content size.
-  watch([() => glide.viewportSize.value, natural], ([viewportSize, size]) => {
-    if (size) glide.contentSize.value = fitInto(viewportSize, size);
-  });
-
-  /** A new image is fitted once, when it has loaded. */
+  /** A new image is fitted once, when it has loaded and the viewport has a size. */
   function onLoad(event: Event) {
     const img = event.currentTarget as HTMLImageElement;
+    fitNext();
     natural.value = { width: img.naturalWidth, height: img.naturalHeight };
-    glide.contentSize.value = fitInto(glide.viewportSize.value, natural.value);
-    glide.fit();
   }
 
   return { src, natural, onLoad };
